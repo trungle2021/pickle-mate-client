@@ -6,6 +6,7 @@ import Home from "@/pages/Home";
 import Match from "@/pages/Match";
 import Navigation from "@/components/Navigation";
 import { ToastProvider } from "@/components/ui/toast";
+import { ConfirmProvider } from "@/contexts/ConfirmContext";
 /* Context */
 import { AppProvider, useApp } from "@/contexts/AppContext";
 
@@ -24,7 +25,9 @@ export default function App() {
   return (
     <AppProvider>
       <ToastProvider>
-        <AppContent />
+        <ConfirmProvider>
+          <AppContent />
+        </ConfirmProvider>
       </ToastProvider>
     </AppProvider>
   );

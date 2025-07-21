@@ -3,20 +3,20 @@ import { apiClient } from './apiClient';
 export interface Player {
   _id: string;
   name: string;
-  gender: "Male" | "Female";
+  gender: "male" | "female";
   skillPoints: number;
   updatedAt: string;
 }
 
 export interface CreatePlayerRequest {
   name: string;
-  gender: "Male" | "Female";
+  gender: "male" | "female";
   skillPoints?: number;
 }
 
 export interface UpdatePlayerRequest {
   name?: string;
-  gender?: "Male" | "Female";
+  gender?: "male" | "female";
   skillPoints?: number;
 }
 

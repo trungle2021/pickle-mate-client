@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
+import { useConfirm } from "@/contexts/ConfirmContext";
 import { useApp } from "@/contexts/AppContext";
 import {
   createPlayer,
@@ -30,11 +31,12 @@ export default function Home() {
   } = useApp();
 
   const { addToast } = useToast();
+  const { confirm } = useConfirm();
 
   const [showAddPlayer, setShowAddPlayer] = useState(false);
   const [newPlayer, setNewPlayer] = useState<CreatePlayerRequest>({
     name: "",
-    gender: "Male",
+    gender: "male",
     skillPoints: 1.0,
   });
   const [isAddingPlayer, setIsAddingPlayer] = useState(false);
@@ -90,7 +92,7 @@ export default function Home() {
       setIsAddingPlayer(true);
       await createPlayer(newPlayer);
       await refreshPlayers();
-      setNewPlayer({ name: "", gender: "Male", skillPoints: 1.0 });
+      setNewPlayer({ name: "", gender: "male", skillPoints: 1.0 });
       setShowAddPlayer(false);
       addToast({
         type: "success",
@@ -107,7 +109,14 @@ export default function Home() {
 
   // Delete player
   const handleDeletePlayer = async (playerId: string, playerName: string) => {
-    if (!confirm(`Bạn có chắc muốn xóa người chơi "${playerName}"?`)) {
+    const confirmed = await confirm({
+      title: "Xác nhận xóa",
+      message: `Bạn có chắc muốn xóa người chơi "${playerName}"?`,
+      confirmText: "Xóa",
+      cancelText: "Hủy"
+    });
+    
+    if (!confirmed) {
       return;
     }
 
@@ -129,7 +138,14 @@ export default function Home() {
 
   // Reset all player points
   const handleResetAllPoints = async () => {
-    if (!confirm("Bạn có chắc muốn reset điểm của tất cả người chơi về 1.0?")) {
+    const confirmed = await confirm({
+      title: "Xác nhận reset điểm",
+      message: "Bạn có chắc muốn reset điểm của tất cả người chơi về 1.0?",
+      confirmText: "Reset",
+      cancelText: "Hủy"
+    });
+    
+    if (!confirmed) {
       return;
     }
 
@@ -380,7 +396,7 @@ export default function Home() {
                               {player.name}
                             </h3>
                             <p className="text-sm text-gray-500 dark:text-slate-400">
-                              {player.gender === "Male" ? "Nam" : "Nữ"}
+                              {player.gender === "male" ? "Nam" : "Nữ"}
                             </p>
                           </div>
 
@@ -482,13 +498,13 @@ export default function Home() {
                     onChange={(e) =>
                       setNewPlayer((prev) => ({
                         ...prev,
-                        gender: e.target.value as "Male" | "Female",
+                        gender: e.target.value as "male" | "female",
                       }))
                     }
                     className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100"
                   >
-                    <option value="Male">Nam</option>
-                    <option value="Female">Nữ</option>
+                    <option value="male">Nam</option>
+                    <option value="female">Nữ</option>
                   </select>
                 </div>
 

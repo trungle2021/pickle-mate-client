@@ -18,6 +18,7 @@ import {
 } from "@/services/sessionsApi";
 import { updateMatchPoints, UpdatePointsRequest } from "@/services/matchesApi";
 import { handleApiError } from "@/utils/errorHandler";
+import { useConfirm } from "@/contexts/ConfirmContext";
 
 export default function Match() {
   const {
@@ -31,6 +32,7 @@ export default function Match() {
   } = useApp();
 
   const { addToast } = useToast();
+  const { confirm } = useConfirm();
 
   const [tournamentStarted, setTournamentStarted] = useState(false);
   const [isCreatingTournament, setIsCreatingTournament] = useState(false);
@@ -311,7 +313,7 @@ export default function Match() {
                                 {player.name}
                               </h3>
                               <p className="text-sm text-gray-500 dark:text-slate-400">
-                                {player.gender === "Male" ? "Nam" : "Nữ"}
+                                {player.gender === "male" ? "Nam" : "Nữ"}
                               </p>
                             </div>
 
@@ -416,7 +418,7 @@ export default function Match() {
                                     {player.name}
                                   </div>
                                   <div className="text-xs text-gray-500 dark:text-slate-400">
-                                    {player.gender === "Male" ? "Nam" : "Nữ"}
+                                    {player.gender === "male" ? "Nam" : "Nữ"}
                                   </div>
                                 </div>
                                 <span className="text-sm font-mono text-gray-900 dark:text-slate-100">
@@ -488,7 +490,7 @@ export default function Match() {
                                     {player.name}
                                   </div>
                                   <div className="text-xs text-gray-500 dark:text-slate-400">
-                                    {player.gender === "Male" ? "Nam" : "Nữ"}
+                                    {player.gender === "male" ? "Nam" : "Nữ"}
                                   </div>
                                 </div>
                                 <span className="text-sm font-mono text-gray-900 dark:text-slate-100">

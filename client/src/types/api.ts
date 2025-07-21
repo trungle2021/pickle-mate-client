@@ -2,7 +2,7 @@
 export interface Player {
   _id: string;
   name: string;
-  gender: "Male" | "Female";
+  gender: "male" | "female";
   skillPoints: number;
   updatedAt: string;
   createdAt?: string;
@@ -10,13 +10,13 @@ export interface Player {
 
 export interface CreatePlayerRequest {
   name: string;
-  gender: "Male" | "Female";
+  gender: "male" | "female";
   skillPoints?: number;
 }
 
 export interface UpdatePlayerRequest {
   name?: string;
-  gender?: "Male" | "Female";
+  gender?: "male" | "female";
   skillPoints?: number;
 }
 
