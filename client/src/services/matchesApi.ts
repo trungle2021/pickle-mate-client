@@ -28,6 +28,16 @@ export const updateMatchPoints = async (updateData: UpdatePointsRequest): Promis
   await apiClient.put('/matches/update-points', updateData);
 };
 
+// GET /api/matches/{id} - Lấy thông tin chi tiết một trận đấu
+export const getMatchById = async (id: string): Promise<Match> => {
+  return await apiClient.get<Match>(`/api/matches/${id}`);
+};
+
+// GET /api/matches/session/{sessionId} - Lấy danh sách trận đấu của một phiên
+export const getMatchesBySessionId = async (sessionId: string): Promise<Match[]> => {
+  return await apiClient.get<Match[]>(`/api/matches/session/${sessionId}`);
+};
+
 // DELETE /api/matches - Xoá toàn bộ dữ liệu trận đấu
 export const deleteAllMatches = async (): Promise<void> => {
   await apiClient.delete('/api/matches');

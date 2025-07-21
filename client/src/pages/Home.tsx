@@ -17,6 +17,7 @@ import {
   CreatePlayerRequest,
 } from "@/services/playersApi";
 import { handleApiError } from "@/utils/errorHandler";
+import PlayerDetailModal from "../components/PlayerDetailModal";
 
 export default function Home() {
   const {
@@ -40,6 +41,8 @@ export default function Home() {
     skillPoints: 1.0,
   });
   const [isAddingPlayer, setIsAddingPlayer] = useState(false);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   const handlePlayerSelect = (playerId: string) => {
     setSelectedPlayerIds((prev) =>
@@ -62,17 +65,26 @@ export default function Home() {
       case "roundrobin":
         return 4;
       case "random":
-        return 2;
+        return 4; // Changed from 2 to 4 to ensure multiples of 4
       case "balanced":
         return 4;
       default:
-        return 2;
+        return 4;
     }
   };
 
   const isValidPlayerCount = selectedPlayerIds.length >= getMinPlayers();
 
   const handleStartMatch = () => {
+    if (selectedPlayerIds.length % 4 !== 0) {
+      addToast({
+        type: "warning",
+        title: "Thông báo",
+        message: "Số lượng người chơi không hợp lệ",
+        duration: 3000,
+      });
+      return;
+    }
     setCurrentPage("match");
   };
 
@@ -113,9 +125,9 @@ export default function Home() {
       title: "Xác nhận xóa",
       message: `Bạn có chắc muốn xóa người chơi "${playerName}"?`,
       confirmText: "Xóa",
-      cancelText: "Hủy"
+      cancelText: "Hủy",
     });
-    
+
     if (!confirmed) {
       return;
     }
@@ -142,9 +154,9 @@ export default function Home() {
       title: "Xác nhận reset điểm",
       message: "Bạn có chắc muốn reset điểm của tất cả người chơi về 1.0?",
       confirmText: "Reset",
-      cancelText: "Hủy"
+      cancelText: "Hủy",
     });
-    
+
     if (!confirmed) {
       return;
     }
@@ -338,9 +350,7 @@ export default function Home() {
             >
               {isValidPlayerCount
                 ? "Bắt đầu trận đấu"
-                : `Cần thêm ${
-                    getMinPlayers() - selectedPlayerIds.length
-                  } người`}
+                : `Cần thêm ${getMinPlayers() - selectedPlayerIds.length} người`}
             </Button>
           </div>
 
@@ -396,7 +406,7 @@ export default function Home() {
                               {player.name}
                             </h3>
                             <p className="text-sm text-gray-500 dark:text-slate-400">
-                              {player.gender === "male" ? "Nam" : "Nữ"}
+                              {player.gender === "Male" ? "Nam" : "Nữ"}
                             </p>
                           </div>
 
@@ -413,6 +423,32 @@ export default function Home() {
                               {player.skillPoints}
                             </span>
                           </div>
+
+                          {/* Detail button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedPlayerId(player._id);
+                              setIsDetailModalOpen(true);
+                            }}
+                            className="w-full mt-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center justify-center py-1 border border-blue-200 dark:border-blue-800 rounded"
+                          >
+                            <svg
+                              className="w-3 h-3 mr-1"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                              ></path>
+                            </svg>
+                            Chi tiết
+                          </button>
                         </div>
                       </div>
                     );
@@ -550,6 +586,18 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* Player Detail Modal */}
+      {selectedPlayerId && (
+        <PlayerDetailModal
+          isOpen={isDetailModalOpen}
+          playerId={selectedPlayerId}
+          onClose={() => {
+            setIsDetailModalOpen(false);
+            setSelectedPlayerId(null);
+          }}
+        />
+      )}
     </div>
   );
 }

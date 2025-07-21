@@ -16,6 +16,10 @@ export const useNavigation = () => {
       console.warn(`Need at least ${minPlayers} players for ${matchFormat} format`);
     }
   };
+  
+  const navigateToLeaderboard = () => {
+    setCurrentPage("leaderboard");
+  };
 
   const getMinPlayersForFormat = (format: "singles" | "doubles" | "mixed") => {
     switch (format) {
@@ -30,6 +34,7 @@ export const useNavigation = () => {
     currentPage,
     navigateToHome,
     navigateToMatch,
+    navigateToLeaderboard,
     canNavigateToMatch: selectedPlayers.length >= getMinPlayersForFormat(matchFormat),
   };
 };

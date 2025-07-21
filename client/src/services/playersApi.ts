@@ -3,14 +3,14 @@ import { apiClient } from './apiClient';
 export interface Player {
   _id: string;
   name: string;
-  gender: "male" | "female";
+  gender: "Male" | "Female"; // API trả về viết hoa
   skillPoints: number;
   updatedAt: string;
 }
 
 export interface CreatePlayerRequest {
   name: string;
-  gender: "male" | "female";
+  gender: "male" | "female"; // API yêu cầu viết thường khi submit
   skillPoints?: number;
 }
 

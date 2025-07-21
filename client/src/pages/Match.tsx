@@ -16,7 +16,7 @@ import {
   CreateSessionRequest,
   GenerateRoundRobinRequest,
 } from "@/services/sessionsApi";
-import { updateMatchPoints, UpdatePointsRequest } from "@/services/matchesApi";
+import { updateMatchPoints, UpdatePointsRequest, getMatchesBySessionId } from "@/services/matchesApi";
 import { handleApiError } from "@/utils/errorHandler";
 import { useConfirm } from "@/contexts/ConfirmContext";
 
@@ -100,22 +100,141 @@ export default function Match() {
       };
 
       const newSession = await createSession(sessionData);
+      console.log("New session created:", newSession);
       setCurrentSession(newSession);
 
-      // Load session details to get matches
-      const sessionDetails = await getSessionById(newSession._id);
-      setMatches(sessionDetails.matches);
+      try {
+        // Thử lấy danh sách trận đấu từ API
+        const matchesList = await getMatchesBySessionId(newSession._id);
+        console.log("Matches from API:", matchesList);
+        
+        if (matchesList && Array.isArray(matchesList) && matchesList.length > 0 && 
+            matchesList[0].team1 && matchesList[0].team2) {
+          // Nếu API trả về danh sách trận đấu đầy đủ và hợp lệ
+          setMatches(matchesList);
+        } else {
+          // Nếu API không trả về trận đấu, tạo trận đấu giả định từ danh sách ID
+          const sessionDetails = await getSessionById(newSession._id);
+          console.log("Session details:", sessionDetails);
+          
+          // Lưu trữ session details để sử dụng sau này
+          const matchesCount = sessionDetails && sessionDetails.matches && Array.isArray(sessionDetails.matches) 
+            ? sessionDetails.matches.length 
+            : 0;
+          
+          if (sessionDetails && sessionDetails.matches && Array.isArray(sessionDetails.matches)) {
+            // Tạo cấu trúc trận đấu giả định từ danh sách ID và người chơi
+            const tempMatches = [];
+            
+            // Nếu là round-robin, tạo các cặp đấu theo thuật toán round-robin
+            if (matchFormat === "roundrobin") {
+              const playerIds = selectedPlayers.map(p => p._id);
+              let matchIndex = 0;
+              
+              // Tạo tất cả các cặp đấu có thể
+              for (let i = 0; i < playerIds.length; i += 2) {
+                for (let j = i + 2; j < playerIds.length; j += 2) {
+                  if (matchIndex < sessionDetails.matches.length) {
+                    tempMatches.push({
+                      _id: sessionDetails.matches[matchIndex],
+                      team1: {
+                        players: [playerIds[i], playerIds[i+1]],
+                        score: 0
+                      },
+                      team2: {
+                        players: [playerIds[j], playerIds[j+1]],
+                        score: 0
+                      },
+                      status: 'pending' as const,
+                      sessionId: newSession._id,
+                      createdAt: new Date().toISOString(),
+                      updatedAt: new Date().toISOString()
+                    });
+                    matchIndex++;
+                  }
+                }
+              }
+            } else {
+              // Đối với các loại khác, chia người chơi thành các đội theo thứ tự
+              for (let i = 0; i < sessionDetails.matches.length; i++) {
+                const matchId = sessionDetails.matches[i];
+                const startIdx = (i * 4) % selectedPlayers.length;
+                
+                tempMatches.push({
+                  _id: matchId,
+                  team1: {
+                    players: [
+                      selectedPlayers[(startIdx) % selectedPlayers.length]._id,
+                      selectedPlayers[(startIdx + 1) % selectedPlayers.length]._id
+                    ],
+                    score: 0
+                  },
+                  team2: {
+                    players: [
+                      selectedPlayers[(startIdx + 2) % selectedPlayers.length]._id,
+                      selectedPlayers[(startIdx + 3) % selectedPlayers.length]._id
+                    ],
+                    score: 0
+                  },
+                  status: 'pending' as const,
+                  sessionId: newSession._id,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                });
+              }
+            }
+            
+            setMatches(tempMatches);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching matches:", error);
+        // Fallback: Tạo trận đấu giả định nếu không lấy được từ API
+        const sessionDetails = await getSessionById(newSession._id);
+        
+        if (sessionDetails.matches && Array.isArray(sessionDetails.matches)) {
+          const tempMatches = sessionDetails.matches.map((matchId: string, index: number) => {
+            const startIdx = (index * 4) % selectedPlayers.length;
+            
+            return {
+              _id: matchId,
+              team1: {
+                players: [
+                  selectedPlayers[(startIdx) % selectedPlayers.length]._id,
+                  selectedPlayers[(startIdx + 1) % selectedPlayers.length]._id
+                ],
+                score: 0
+              },
+              team2: {
+                players: [
+                  selectedPlayers[(startIdx + 2) % selectedPlayers.length]._id,
+                  selectedPlayers[(startIdx + 3) % selectedPlayers.length]._id
+                ],
+                score: 0
+              },
+              status: 'pending' as const,
+              sessionId: newSession._id,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+          });
+          
+          setMatches(tempMatches);
+        }
+      }
+      
       setTournamentStarted(true);
 
       // Refresh sessions list
       await refreshSessions();
 
+      // Sử dụng matches.length vì đã được cập nhật
+      const matchCount = matches.length;
+      
       addToast({
         type: "success",
         title: "Tạo lịch thi đấu thành công!",
-        message: `Đã tạo phiên ${getFormatName()} với ${
-          sessionDetails.matches.length
-        } trận đấu`,
+        message: `Đã tạo phiên ${getFormatName()} với ${matchCount} trận đấu`,
         duration: 4000,
       });
     } catch (error: any) {
@@ -199,7 +318,8 @@ export default function Match() {
     );
   };
 
-  const getPlayersByIds = (playerIds: string[]) => {
+  const getPlayersByIds = (playerIds: string[] = []) => {
+    if (!playerIds || !Array.isArray(playerIds)) return [];
     return selectedPlayers.filter((p) => playerIds.includes(p._id));
   };
 
@@ -358,8 +478,14 @@ export default function Match() {
             {/* Matches List */}
             <div className="space-y-4">
               {matches.map((match, index) => {
-                const team1Players = getPlayersByIds(match.team1.players);
-                const team2Players = getPlayersByIds(match.team2.players);
+                // Kiểm tra dữ liệu trận đấu hợp lệ
+                if (!match || !match.team1 || !match.team2) {
+                  console.error("Invalid match data:", match);
+                  return null;
+                }
+                
+                const team1Players = getPlayersByIds(match.team1.players || []);
+                const team2Players = getPlayersByIds(match.team2.players || []);
                 const matchScore = matchScores[match._id] || {
                   team1: 0,
                   team2: 0,

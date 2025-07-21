@@ -4,6 +4,7 @@ import "@/assets/styles/global.css";
 /* Components */
 import Home from "@/pages/Home";
 import Match from "@/pages/Match";
+import Leaderboard from "@/pages/Leaderboard";
 import Navigation from "@/components/Navigation";
 import { ToastProvider } from "@/components/ui/toast";
 import { ConfirmProvider } from "@/contexts/ConfirmContext";
@@ -16,7 +17,9 @@ const AppContent: React.FC = () => {
   return (
     <div className="min-h-screen">
       <Navigation />
-      {currentPage === "home" ? <Home /> : <Match />}
+      {currentPage === "home" && <Home />}
+      {currentPage === "match" && <Match />}
+      {currentPage === "leaderboard" && <Leaderboard />}
     </div>
   );
 };
