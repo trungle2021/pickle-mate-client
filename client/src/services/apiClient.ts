@@ -10,7 +10,7 @@ interface RetryConfig {
 class ApiClient {
   private client: AxiosInstance;
   private retryConfig: RetryConfig = {
-    maxRetries: 3,
+    maxRetries: 0, // Tắt retry - không thử lại khi gặp lỗi
     baseDelay: 1000,
     maxDelay: 10000,
   };
@@ -68,25 +68,14 @@ class ApiClient {
     operation: () => Promise<T>,
     operationName: string
   ): Promise<T> {
-    let lastError: AxiosError;
-
-    for (let attempt = 0; attempt <= this.retryConfig.maxRetries; attempt++) {
-      try {
-        return await operation();
-      } catch (error) {
-        lastError = error as AxiosError;
-        
-        if (attempt === this.retryConfig.maxRetries || !this.shouldRetry(lastError)) {
-          throw lastError;
-        }
-
-        const delay = this.calculateDelay(attempt);
-        console.warn(`${operationName} failed (attempt ${attempt + 1}/${this.retryConfig.maxRetries + 1}). Retrying in ${delay}ms...`);
-        await this.delay(delay);
-      }
+    // Không retry, chỉ thực hiện operation một lần
+    try {
+      return await operation();
+    } catch (error) {
+      const lastError = error as AxiosError;
+      console.error(`${operationName} failed:`, lastError?.response?.data || lastError.message);
+      throw lastError;
     }
-
-    throw lastError!;
   }
 
   async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {

@@ -5,6 +5,7 @@ import "@/assets/styles/global.css";
 import Home from "@/pages/Home";
 import Match from "@/pages/Match";
 import Navigation from "@/components/Navigation";
+import { ToastProvider } from "@/components/ui/toast";
 /* Context */
 import { AppProvider, useApp } from "@/contexts/AppContext";
 
@@ -22,7 +23,9 @@ const AppContent: React.FC = () => {
 export default function App() {
   return (
     <AppProvider>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </AppProvider>
   );
 }
