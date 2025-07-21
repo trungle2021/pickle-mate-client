@@ -1,16 +1,28 @@
-/* Router */
-import {Route, Routes, BrowserRouter as Router} from "react-router-dom";
+import React from "react";
 /* CSS */
 import "@/assets/styles/global.css";
 /* Components */
 import Home from "@/pages/Home";
+import Match from "@/pages/Match";
+import Navigation from "@/components/Navigation";
+/* Context */
+import { AppProvider, useApp } from "@/contexts/AppContext";
+
+const AppContent: React.FC = () => {
+  const { currentPage } = useApp();
+
+  return (
+    <div className="min-h-screen">
+      <Navigation />
+      {currentPage === "home" ? <Home /> : <Match />}
+    </div>
+  );
+};
 
 export default function App() {
-	return (
-		<Router>
-			<Routes>
-				<Route path={"/"} element={<Home />} />
-			</Routes>
-		</Router>
-	);
+  return (
+    <AppProvider>
+      <AppContent />
+    </AppProvider>
+  );
 }
