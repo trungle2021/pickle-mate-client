@@ -20,6 +20,10 @@ export const useNavigation = () => {
   const navigateToLeaderboard = () => {
     setCurrentPage("leaderboard");
   };
+  
+  const navigateToSessions = () => {
+    setCurrentPage("sessions");
+  };
 
   const getMinPlayersForFormat = (format: "singles" | "doubles" | "mixed") => {
     switch (format) {
@@ -35,6 +39,7 @@ export const useNavigation = () => {
     navigateToHome,
     navigateToMatch,
     navigateToLeaderboard,
+    navigateToSessions,
     canNavigateToMatch: selectedPlayers.length >= getMinPlayersForFormat(matchFormat),
   };
 };

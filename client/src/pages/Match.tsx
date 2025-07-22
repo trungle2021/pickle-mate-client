@@ -16,11 +16,18 @@ import {
   CreateSessionRequest,
   GenerateRoundRobinRequest,
 } from "@/services/sessionsApi";
-import { updateMatchPoints, UpdatePointsRequest, getMatchesBySessionId } from "@/services/matchesApi";
+import { updateMatchPoints, UpdatePointsRequest, getMatchesFromSession, matchSelectors } from "@/services/matchesApi";
+import { playerSelectors } from "@/services/playersApi";
 import { handleApiError } from "@/utils/errorHandler";
 import { useConfirm } from "@/contexts/ConfirmContext";
 
 export default function Match() {
+  // Lấy sessionId từ URL query parameter nếu có
+  const getSessionIdFromUrl = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('sessionId');
+  };
+
   const {
     selectedPlayers,
     matchFormat,
@@ -74,13 +81,100 @@ export default function Match() {
     }
   };
 
+  // Load session from URL if available
+  useEffect(() => {
+    const sessionId = getSessionIdFromUrl();
+    if (sessionId && (!currentSession || currentSession._id !== sessionId)) {
+      const fetchSessionById = async () => {
+        try {
+          const sessionData = await getSessionById(sessionId);
+          setCurrentSession(sessionData);
+        } catch (error) {
+          console.error("Error fetching session from URL:", error);
+          addToast({
+            type: "error",
+            title: "Lỗi",
+            message: "Không thể tải thông tin phiên đấu",
+            duration: 3000,
+          });
+        }
+      };
+      
+      fetchSessionById();
+    }
+  }, []);
+
   // Load matches from current session
   useEffect(() => {
-    if (currentSession && currentSession.matches.length > 0) {
-      setMatches(currentSession.matches);
-      setTournamentStarted(true);
-    }
+    const loadSessionMatches = async () => {
+      if (!currentSession) return;
+      
+      console.log("Current session:", currentSession);
+      
+      try {
+        // Kiểm tra xem matches có phải là mảng đối tượng Match đầy đủ không
+        if (currentSession.matches && Array.isArray(currentSession.matches) && currentSession.matches.length > 0) {
+          // Kiểm tra xem matches có phải là mảng ID hay mảng đối tượng
+          if (typeof currentSession.matches[0] === 'string') {
+            // Không thể lấy chi tiết trận đấu từ API vì endpoint không tồn tại
+            console.log("Session contains match IDs, not full match objects");
+            
+            // Hiển thị thông báo
+            addToast({
+              type: "warning",
+              title: "Thông tin trận đấu",
+              message: "Không thể lấy thông tin chi tiết trận đấu",
+              duration: 3000,
+            });
+            
+            // Tạo mảng trận đấu giả định với thông tin tối thiểu
+            const matchesList = currentSession.matches.map((matchId: string, index: number) => {
+              // Chia người chơi thành các đội
+              const allPlayers = [...selectedPlayers];
+              const startIdx = (index * 4) % allPlayers.length;
+              
+              return {
+                _id: matchId,
+                team1: {
+                  players: [
+                    allPlayers[(startIdx) % allPlayers.length]._id,
+                    allPlayers[(startIdx + 1) % allPlayers.length]._id
+                  ],
+                  score: 0
+                },
+                team2: {
+                  players: [
+                    allPlayers[(startIdx + 2) % allPlayers.length]._id,
+                    allPlayers[(startIdx + 3) % allPlayers.length]._id
+                  ],
+                  score: 0
+                },
+                status: 'pending' as const,
+                sessionId: currentSession._id,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              };
+            });
+            
+            if (matchesList && Array.isArray(matchesList) && matchesList.length > 0) {
+              setMatches(matchesList);
+              setTournamentStarted(true);
+            }
+          } else if (currentSession.matches[0].team1 && currentSession.matches[0].team2) {
+            // Nếu là mảng đối tượng Match đầy đủ
+            setMatches(currentSession.matches);
+            setTournamentStarted(true);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading session matches:", error);
+      }
+    };
+    
+    loadSessionMatches();
   }, [currentSession, setMatches]);
+  
+  // Không cần xóa sessionId khỏi URL khi component unmount
 
   const generateTournament = async () => {
     if (selectedPlayers.length < 2) return;
@@ -103,113 +197,46 @@ export default function Match() {
       console.log("New session created:", newSession);
       setCurrentSession(newSession);
 
+      // Lấy thông tin chi tiết session từ API
+      const sessionDetails = await getSessionById(newSession._id);
+      console.log("Session details:", sessionDetails);
+      
+      // Kiểm tra xem session có chứa matches không
+      if (!sessionDetails || !sessionDetails.matches || !Array.isArray(sessionDetails.matches)) {
+        throw new Error("Không thể lấy thông tin trận đấu từ API");
+      }
+      
       try {
-        // Thử lấy danh sách trận đấu từ API
-        const matchesList = await getMatchesBySessionId(newSession._id);
-        console.log("Matches from API:", matchesList);
+        // Lấy danh sách trận đấu từ session
+        const matchesList = getMatchesFromSession(sessionDetails);
+        console.log("Matches from session:", matchesList);
         
-        if (matchesList && Array.isArray(matchesList) && matchesList.length > 0 && 
-            matchesList[0].team1 && matchesList[0].team2) {
-          // Nếu API trả về danh sách trận đấu đầy đủ và hợp lệ
+        if (matchesList && Array.isArray(matchesList) && matchesList.length > 0) {
           setMatches(matchesList);
         } else {
-          // Nếu API không trả về trận đấu, tạo trận đấu giả định từ danh sách ID
-          const sessionDetails = await getSessionById(newSession._id);
-          console.log("Session details:", sessionDetails);
+          // Nếu không có trận đấu chi tiết, tạo trận đấu giả định từ danh sách ID
+          console.log("Creating simple matches from IDs");
           
-          // Lưu trữ session details để sử dụng sau này
-          const matchesCount = sessionDetails && sessionDetails.matches && Array.isArray(sessionDetails.matches) 
-            ? sessionDetails.matches.length 
-            : 0;
-          
-          if (sessionDetails && sessionDetails.matches && Array.isArray(sessionDetails.matches)) {
-            // Tạo cấu trúc trận đấu giả định từ danh sách ID và người chơi
-            const tempMatches = [];
-            
-            // Nếu là round-robin, tạo các cặp đấu theo thuật toán round-robin
-            if (matchFormat === "roundrobin") {
-              const playerIds = selectedPlayers.map(p => p._id);
-              let matchIndex = 0;
-              
-              // Tạo tất cả các cặp đấu có thể
-              for (let i = 0; i < playerIds.length; i += 2) {
-                for (let j = i + 2; j < playerIds.length; j += 2) {
-                  if (matchIndex < sessionDetails.matches.length) {
-                    tempMatches.push({
-                      _id: sessionDetails.matches[matchIndex],
-                      team1: {
-                        players: [playerIds[i], playerIds[i+1]],
-                        score: 0
-                      },
-                      team2: {
-                        players: [playerIds[j], playerIds[j+1]],
-                        score: 0
-                      },
-                      status: 'pending' as const,
-                      sessionId: newSession._id,
-                      createdAt: new Date().toISOString(),
-                      updatedAt: new Date().toISOString()
-                    });
-                    matchIndex++;
-                  }
-                }
-              }
-            } else {
-              // Đối với các loại khác, chia người chơi thành các đội theo thứ tự
-              for (let i = 0; i < sessionDetails.matches.length; i++) {
-                const matchId = sessionDetails.matches[i];
-                const startIdx = (i * 4) % selectedPlayers.length;
-                
-                tempMatches.push({
-                  _id: matchId,
-                  team1: {
-                    players: [
-                      selectedPlayers[(startIdx) % selectedPlayers.length]._id,
-                      selectedPlayers[(startIdx + 1) % selectedPlayers.length]._id
-                    ],
-                    score: 0
-                  },
-                  team2: {
-                    players: [
-                      selectedPlayers[(startIdx + 2) % selectedPlayers.length]._id,
-                      selectedPlayers[(startIdx + 3) % selectedPlayers.length]._id
-                    ],
-                    score: 0
-                  },
-                  status: 'pending' as const,
-                  sessionId: newSession._id,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString()
-                });
-              }
-            }
-            
-            setMatches(tempMatches);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching matches:", error);
-        // Fallback: Tạo trận đấu giả định nếu không lấy được từ API
-        const sessionDetails = await getSessionById(newSession._id);
-        
-        if (sessionDetails.matches && Array.isArray(sessionDetails.matches)) {
-          const tempMatches = sessionDetails.matches.map((matchId: string, index: number) => {
-            const startIdx = (index * 4) % selectedPlayers.length;
+          // Tạo mảng trận đấu giả định với thông tin tối thiểu
+          const simpleMatches = sessionDetails.matches.map((matchId: string, index: number) => {
+            // Chia người chơi thành các đội
+            const allPlayers = [...selectedPlayers];
+            const startIdx = (index * 4) % allPlayers.length;
             
             return {
-              _id: matchId,
+              _id: typeof matchId === 'string' ? matchId : `match-${index}`,
               team1: {
-                players: [
-                  selectedPlayers[(startIdx) % selectedPlayers.length]._id,
-                  selectedPlayers[(startIdx + 1) % selectedPlayers.length]._id
-                ],
+                players: allPlayers.length >= 2 ? [
+                  allPlayers[(startIdx) % allPlayers.length]._id,
+                  allPlayers[(startIdx + 1) % allPlayers.length]._id
+                ] : [],
                 score: 0
               },
               team2: {
-                players: [
-                  selectedPlayers[(startIdx + 2) % selectedPlayers.length]._id,
-                  selectedPlayers[(startIdx + 3) % selectedPlayers.length]._id
-                ],
+                players: allPlayers.length >= 4 ? [
+                  allPlayers[(startIdx + 2) % allPlayers.length]._id,
+                  allPlayers[(startIdx + 3) % allPlayers.length]._id
+                ] : [],
                 score: 0
               },
               status: 'pending' as const,
@@ -219,7 +246,26 @@ export default function Match() {
             };
           });
           
-          setMatches(tempMatches);
+          setMatches(simpleMatches);
+        }
+      } catch (matchError) {
+        console.error("Error fetching matches:", matchError);
+        
+        // Nếu không lấy được từ API mới, thử lấy từ session
+        if (sessionDetails.matches.length > 0 && 
+            typeof sessionDetails.matches[0] !== 'string' &&
+            sessionDetails.matches[0].team1 && 
+            sessionDetails.matches[0].team2) {
+          setMatches(sessionDetails.matches);
+        } else {
+          // Nếu không có dữ liệu trận đấu, hiển thị thông báo
+          addToast({
+            type: "warning",
+            title: "Không thể lấy dữ liệu trận đấu",
+            message: "Vui lòng thử tạo lại trận đấu hoặc liên hệ quản trị viên",
+            duration: 5000,
+          });
+          throw new Error("Không thể lấy thông tin chi tiết trận đấu từ API");
         }
       }
       
@@ -229,16 +275,26 @@ export default function Match() {
       await refreshSessions();
 
       // Sử dụng matches.length vì đã được cập nhật
-      const matchCount = matches.length;
-      
       addToast({
         type: "success",
         title: "Tạo lịch thi đấu thành công!",
-        message: `Đã tạo phiên ${getFormatName()} với ${matchCount} trận đấu`,
+        message: `Đã tạo phiên ${getFormatName()} với ${matches.length} trận đấu`,
         duration: 4000,
       });
     } catch (error: any) {
-      handleApiError(error, addToast);
+      console.error("Error creating tournament:", error);
+      
+      // Hiển thị thông báo lỗi cụ thể
+      addToast({
+        type: "error",
+        title: "Lỗi tạo trận đấu",
+        message: error.message || "Không thể tạo trận đấu. Vui lòng thử lại sau.",
+        duration: 5000,
+      });
+      
+      // Reset trạng thái
+      setMatches([]);
+      setTournamentStarted(false);
     } finally {
       setIsCreatingTournament(false);
     }
@@ -307,20 +363,38 @@ export default function Match() {
     }
   };
 
-  const getTeamSkillAverage = (playerIds: string[]) => {
-    const teamPlayers = selectedPlayers.filter((p) =>
-      playerIds.includes(p._id)
+  const getTeamSkillAverage = (playerIds: string[] = []) => {
+    // Kiểm tra nếu playerIds không phải là mảng hoặc rỗng
+    if (!playerIds || !Array.isArray(playerIds) || playerIds.length === 0) {
+      return 0;
+    }
+    
+    // Kiểm tra nếu selectedPlayers không tồn tại hoặc rỗng
+    if (!selectedPlayers || !Array.isArray(selectedPlayers) || selectedPlayers.length === 0) {
+      return 0;
+    }
+    
+    const teamPlayers = selectedPlayers.filter((p) => 
+      p && p._id && playerIds.includes(p._id)
     );
+    
     if (teamPlayers.length === 0) return 0;
-    return (
-      teamPlayers.reduce((sum, player) => sum + player.skillPoints, 0) /
-      teamPlayers.length
-    );
+    
+    // Tính trung bình điểm skill thủ công thay vì sử dụng playerSelectors
+    const totalSkill = teamPlayers.reduce((sum, player) => sum + (player.skillPoints || 0), 0);
+    return teamPlayers.length > 0 ? totalSkill / teamPlayers.length : 0;
   };
 
   const getPlayersByIds = (playerIds: string[] = []) => {
     if (!playerIds || !Array.isArray(playerIds)) return [];
-    return selectedPlayers.filter((p) => playerIds.includes(p._id));
+    
+    // Kiểm tra nếu selectedPlayers không tồn tại hoặc rỗng
+    if (!selectedPlayers || !Array.isArray(selectedPlayers) || selectedPlayers.length === 0) {
+      return [];
+    }
+    
+    // Lọc người chơi theo ID một cách an toàn
+    return selectedPlayers.filter(p => p && p._id && playerIds.includes(p._id));
   };
 
   if (selectedPlayers.length === 0) {
@@ -469,7 +543,7 @@ export default function Match() {
                   Giải đấu {getFormatName()}
                 </CardTitle>
                 <CardDescription className="text-blue-700 dark:text-blue-300">
-                  {matches.length} trận đấu • {selectedPlayers.length} người
+                  {matches.length} trận đấu • {currentSession?.players?.length || selectedPlayers.length} người
                   chơi
                 </CardDescription>
               </CardHeader>
@@ -484,8 +558,12 @@ export default function Match() {
                   return null;
                 }
                 
-                const team1Players = getPlayersByIds(match.team1.players || []);
-                const team2Players = getPlayersByIds(match.team2.players || []);
+                // Đảm bảo match.team1.players và match.team2.players là mảng
+                const team1PlayerIds = Array.isArray(match.team1.players) ? match.team1.players : [];
+                const team2PlayerIds = Array.isArray(match.team2.players) ? match.team2.players : [];
+                
+                const team1Players = getPlayersByIds(team1PlayerIds);
+                const team2Players = getPlayersByIds(team2PlayerIds);
                 const matchScore = matchScores[match._id] || {
                   team1: 0,
                   team2: 0,

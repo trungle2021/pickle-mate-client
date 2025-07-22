@@ -5,8 +5,8 @@ import { Match } from "@/services/matchesApi";
 
 interface AppContextType {
   // Navigation
-  currentPage: "home" | "match" | "leaderboard";
-  setCurrentPage: (page: "home" | "match" | "leaderboard") => void;
+  currentPage: "home" | "match" | "leaderboard" | "sessions" | "sessionDetail";
+  setCurrentPage: (page: "home" | "match" | "leaderboard" | "sessions" | "sessionDetail") => void;
   
   // Players
   players: Player[];
@@ -49,7 +49,7 @@ interface AppProviderProps {
 }
 
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
-  const [currentPage, setCurrentPage] = useState<"home" | "match" | "leaderboard">("home");
+  const [currentPage, setCurrentPage] = useState<"home" | "match" | "leaderboard" | "sessions" | "sessionDetail">("home");
   const [players, setPlayers] = useState<Player[]>([]);
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);

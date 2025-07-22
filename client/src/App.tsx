@@ -5,6 +5,8 @@ import "@/assets/styles/global.css";
 import Home from "@/pages/Home";
 import Match from "@/pages/Match";
 import Leaderboard from "@/pages/Leaderboard";
+import Sessions from "@/pages/Sessions";
+import SessionDetail from "@/pages/SessionDetail";
 import Navigation from "@/components/Navigation";
 import { ToastProvider } from "@/components/ui/toast";
 import { ConfirmProvider } from "@/contexts/ConfirmContext";
@@ -20,6 +22,8 @@ const AppContent: React.FC = () => {
       {currentPage === "home" && <Home />}
       {currentPage === "match" && <Match />}
       {currentPage === "leaderboard" && <Leaderboard />}
+      {currentPage === "sessions" && <Sessions />}
+      {currentPage === "sessionDetail" && <SessionDetail />}
     </div>
   );
 };

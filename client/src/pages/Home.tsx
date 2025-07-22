@@ -15,6 +15,7 @@ import {
   deletePlayer,
   resetAllPlayerPoints,
   CreatePlayerRequest,
+  playerSelectors
 } from "@/services/playersApi";
 import { handleApiError } from "@/utils/errorHandler";
 import PlayerDetailModal from "../components/PlayerDetailModal";
@@ -58,6 +59,11 @@ export default function Home() {
     if (skillPoints >= 1.0) return "bg-yellow-500";
     if (skillPoints >= 0.8) return "bg-green-500";
     return "bg-blue-500";
+  };
+  
+  // Sử dụng bộ chọn dữ liệu
+  const getTopSkillPlayers = (count = 3) => {
+    return playerSelectors.sortBySkill(players, false).slice(0, count);
   };
 
   const getMinPlayers = () => {
